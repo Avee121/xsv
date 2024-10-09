@@ -37,12 +37,14 @@ macro_rules! werr {
 }
 
 macro_rules! fail {
-    ($e:expr) => (Err(::std::convert::From::from($e)));
+    ($e:expr) => {
+        Err(::std::convert::From::from($e))
+    };
 }
 
 macro_rules! command_list {
-    () => (
-"
+    () => {
+        "
     cat         Concatenate by row or column
     count       Count records
     fixlengths  Makes all records have same length
@@ -64,8 +66,9 @@ macro_rules! command_list {
     split       Split CSV data into many files
     stats       Compute basic statistics
     table       Align CSV data into columns
+    val         Validate CSV data
 "
-    )
+    };
 }
 
 mod cmd;
@@ -74,7 +77,8 @@ mod index;
 mod select;
 mod util;
 
-static USAGE: &'static str = concat!("
+static USAGE: &'static str = concat!(
+    "
 Usage:
     xsv <command> [<args>...]
     xsv [options]
@@ -85,7 +89,9 @@ Options:
     <command> -h  Display the command help message
     --version     Print version info and exit
 
-Commands:", command_list!());
+Commands:",
+    command_list!()
+);
 
 #[derive(Deserialize)]
 struct Args {
@@ -95,10 +101,12 @@ struct Args {
 
 fn main() {
     let args: Args = Docopt::new(USAGE)
-                            .and_then(|d| d.options_first(true)
-                                           .version(Some(util::version()))
-                                           .deserialize())
-                            .unwrap_or_else(|e| e.exit());
+        .and_then(|d| {
+            d.options_first(true)
+                .version(Some(util::version()))
+                .deserialize()
+        })
+        .unwrap_or_else(|e| e.exit());
     if args.flag_list {
         wout!(concat!("Installed commands:", command_list!()));
         return;
@@ -109,31 +117,29 @@ fn main() {
                 "xsv is a suite of CSV command line utilities.
 
 Please choose one of the following commands:",
-                command_list!()));
+                command_list!()
+            ));
             process::exit(0);
         }
-        Some(cmd) => {
-            match cmd.run() {
-                Ok(()) => process::exit(0),
-                Err(CliError::Flag(err)) => err.exit(),
-                Err(CliError::Csv(err)) => {
-                    werr!("{}", err);
-                    process::exit(1);
-                }
-                Err(CliError::Io(ref err))
-                        if err.kind() == io::ErrorKind::BrokenPipe => {
-                    process::exit(0);
-                }
-                Err(CliError::Io(err)) => {
-                    werr!("{}", err);
-                    process::exit(1);
-                }
-                Err(CliError::Other(msg)) => {
-                    werr!("{}", msg);
-                    process::exit(1);
-                }
+        Some(cmd) => match cmd.run() {
+            Ok(()) => process::exit(0),
+            Err(CliError::Flag(err)) => err.exit(),
+            Err(CliError::Csv(err)) => {
+                werr!("{}", err);
+                process::exit(1);
             }
-        }
+            Err(CliError::Io(ref err)) if err.kind() == io::ErrorKind::BrokenPipe => {
+                process::exit(0);
+            }
+            Err(CliError::Io(err)) => {
+                werr!("{}", err);
+                process::exit(1);
+            }
+            Err(CliError::Other(msg)) => {
+                werr!("{}", msg);
+                process::exit(1);
+            }
+        },
     }
 }
 
@@ -161,6 +167,7 @@ enum Command {
     Split,
     Stats,
     Table,
+    Val,
 }
 
 impl Command {
@@ -170,9 +177,13 @@ impl Command {
         let argv = &*argv;
 
         if !argv[1].chars().all(char::is_lowercase) {
-            return Err(CliError::Other(format!(
-                "xsv expects commands in lowercase. Did you mean '{}'?", 
-                argv[1].to_lowercase()).to_string()));
+            return Err(CliError::Other(
+                format!(
+                    "xsv expects commands in lowercase. Did you mean '{}'?",
+                    argv[1].to_lowercase()
+                )
+                .to_string(),
+            ));
         }
         match self {
             Command::Cat => cmd::cat::run(argv),
@@ -182,7 +193,10 @@ impl Command {
             Command::Fmt => cmd::fmt::run(argv),
             Command::Frequency => cmd::frequency::run(argv),
             Command::Headers => cmd::headers::run(argv),
-            Command::Help => { wout!("{}", USAGE); Ok(()) }
+            Command::Help => {
+                wout!("{}", USAGE);
+                Ok(())
+            }
             Command::Index => cmd::index::run(argv),
             Command::Input => cmd::input::run(argv),
             Command::Join => cmd::join::run(argv),
@@ -196,6 +210,7 @@ impl Command {
             Command::Split => cmd::split::run(argv),
             Command::Stats => cmd::stats::run(argv),
             Command::Table => cmd::table::run(argv),
+            Command::Val => cmd::validate::run(argv),
         }
     }
 }
@@ -213,10 +228,10 @@ pub enum CliError {
 impl fmt::Display for CliError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            CliError::Flag(ref e) => { e.fmt(f) }
-            CliError::Csv(ref e) => { e.fmt(f) }
-            CliError::Io(ref e) => { e.fmt(f) }
-            CliError::Other(ref s) => { f.write_str(&**s) }
+            CliError::Flag(ref e) => e.fmt(f),
+            CliError::Csv(ref e) => e.fmt(f),
+            CliError::Io(ref e) => e.fmt(f),
+            CliError::Other(ref s) => f.write_str(&**s),
         }
     }
 }
