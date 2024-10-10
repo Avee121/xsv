@@ -50,6 +50,7 @@ Dual-licensed under MIT or the [UNLICENSE](https://unlicense.org).
 * **stats** - Show basic types and statistics of each column in the CSV file.
   (i.e., mean, standard deviation, median, range, etc.)
 * **table** - Show aligned output of any CSV data using
+* **val** - Validate a CSV is in a valid format. Errors can be dumped to a stdout or a file.
   [elastic tabstops](https://github.com/BurntSushi/tabwriter).
 
 
